@@ -1,0 +1,27 @@
+# Dev container for running the Rust test suite without installing Handy's
+# system build dependencies on the host. Package set and base OS mirror
+# .github/workflows/test.yml (ubuntu-24.04) so local results match CI.
+#
+# Do not run bare `docker build`/`docker run` by hand; use scripts/dev-test.sh,
+# which wires up the persistent caches (target dir on the big disk, cargo
+# registry in a named volume).
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates build-essential cmake pkg-config \
+    libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libasound2-dev \
+    libssl-dev libgtk-layer-shell-dev libvulkan-dev glslc spirv-headers \
+    && rm -rf /var/lib/apt/lists/*
+
+# Match the host user (uid 1000) so files written into bind mounts are not
+# root-owned on the host. The toolchain lives under the user's home so cargo
+# can create its package lock without ownership problems.
+# ubuntu:24.04 ships a default `ubuntu` user at uid 1000; drop it first.
+RUN userdel -r ubuntu && useradd -m -u 1000 handy
+USER handy
+ENV RUSTUP_HOME=/home/handy/.rustup CARGO_HOME=/home/handy/.cargo PATH=/home/handy/.cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable \
+    && rustup component add rustfmt clippy
+
+WORKDIR /work
