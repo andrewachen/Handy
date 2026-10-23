@@ -691,6 +691,8 @@
       "empty": "Все още няма транскрипции. Започнете запис, за да изградите история!",
       "copyToClipboard": "Копиране на транскрипцията в клипборда",
       "copyError": "Транскрипцията не бе копирана в клипборда.",
+      "postProcessAndCopy": "Post-process and copy result",
+      "postProcessError": "Post-processing failed. Check your post-processing settings.",
       "save": "Запазване на транскрипцията",
       "unsave": "Премахване от запазените",
       "delete": "Изтриване на записа",

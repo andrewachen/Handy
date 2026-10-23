@@ -691,6 +691,8 @@
       "empty": "עדיין אין תמלולים. התחל להקליט כדי לבנות את ההיסטוריה שלך!",
       "copyToClipboard": "העתק תמלול ללוח",
       "copyError": "לא ניתן להעתיק את התמלול ללוח.",
+      "postProcessAndCopy": "Post-process and copy result",
+      "postProcessError": "Post-processing failed. Check your post-processing settings.",
       "save": "שמור תמלול",
       "unsave": "הסר משמורים",
       "delete": "מחק רשומה",

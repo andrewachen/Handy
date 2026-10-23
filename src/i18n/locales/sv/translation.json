@@ -691,6 +691,8 @@
       "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
+      "postProcessAndCopy": "Post-process and copy result",
+      "postProcessError": "Post-processing failed. Check your post-processing settings.",
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",

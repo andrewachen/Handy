@@ -691,6 +691,8 @@
       "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう!",
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "copyError": "文字起こしをクリップボードにコピーできませんでした。",
+      "postProcessAndCopy": "Post-process and copy result",
+      "postProcessError": "Post-processing failed. Check your post-processing settings.",
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",

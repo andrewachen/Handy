@@ -14,6 +14,7 @@ import {
   FilePlus,
   FolderOpen,
   RotateCcw,
+  Sparkles,
   Star,
   Trash2,
   X,
@@ -56,6 +57,53 @@ const IconButton: React.FC<{
   >
     {children}
   </button>
+);
+
+// Working state for the post-process button: the lucide Sparkles artwork with
+// its big star shrinking while the small sparkles grow (and reversing), so the
+// twinkle reads as post-processing in flight. Scale only — the button is
+// disabled (20% grey) while working, so an opacity fade would vanish.
+const SparklesSpinner: React.FC = () => (
+  <span className="twinkler" role="status">
+    <style>{`
+      .twinkler path, .twinkler circle {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+      .twinkler .twinkle-big {
+        animation: twinkle-big 0.9s ease-in-out infinite alternate;
+      }
+      .twinkler .twinkle-small {
+        animation: twinkle-small 0.9s ease-in-out infinite alternate;
+      }
+      @keyframes twinkle-big {
+        from { transform: scale(1); }
+        to { transform: scale(0.6); }
+      }
+      @keyframes twinkle-small {
+        from { transform: scale(0.6); }
+        to { transform: scale(1.2); }
+      }
+    `}</style>
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path
+        className="twinkle-big"
+        d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"
+      />
+      <path className="twinkle-small" d="M20 2v4" />
+      <path className="twinkle-small" d="M22 4h-4" />
+      <circle className="twinkle-small" cx="4" cy="20" r="2" />
+    </svg>
+  </span>
 );
 
 const PAGE_SIZE = 30;
@@ -253,6 +301,13 @@ export const HistorySettings: React.FC = () => {
     }
   };
 
+  const postProcessHistoryEntry = async (id: number) => {
+    const result = await commands.postProcessHistoryEntry(id);
+    if (result.status !== "ok") {
+      throw new Error(String(result.error));
+    }
+  };
+
   const openRecordingsFolder = async () => {
     try {
       const result = await commands.openRecordingsFolder();
@@ -294,6 +349,7 @@ export const HistorySettings: React.FC = () => {
                 deleteAudio={deleteAudioEntry}
                 retryTranscription={commands.retryHistoryEntryTranscription}
                 cancelTranscription={commands.cancelHistoryEntryTranscription}
+                postProcessAndCopy={postProcessHistoryEntry}
               />
             ))}
           </div>
@@ -339,6 +395,7 @@ interface HistoryEntryProps {
   job?: ActiveJobStatus;
   onToggleSaved: () => void;
   onCopyText: () => Promise<boolean>;
+  postProcessAndCopy: (id: number) => Promise<void>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
   deleteAudio: (id: number) => Promise<void>;
   retryTranscription: (id: number) => Promise<void>;
@@ -350,6 +407,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   job,
   onToggleSaved,
   onCopyText,
+  postProcessAndCopy,
   getAudioUrl,
   deleteAudio,
   retryTranscription,
@@ -362,6 +420,8 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const [expanded, setExpanded] = useState(false);
   const [overflows, setOverflows] = useState(false);
   const textRef = useRef<HTMLParagraphElement>(null);
+  const [showPostCopied, setShowPostCopied] = useState(false);
+  const [postProcessing, setPostProcessing] = useState(false);
 
   // Queued or being transcribed in the background.
   const retrying = job !== undefined;
@@ -400,6 +460,34 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
 
     setShowCopied(true);
     setTimeout(() => setShowCopied(false), 2000);
+  };
+
+  const handlePostProcessAndCopy = async () => {
+    if (!hasTranscription) {
+      return;
+    }
+
+    try {
+      setPostProcessing(true);
+      const result = await commands.postProcessHistoryEntry(entry.id);
+      if (result.status !== "ok") {
+        throw new Error(String(result.error));
+      }
+
+      const copied = await copyToClipboard(result.data.post_processed_text);
+      if (!copied) {
+        toast.error(t("settings.history.copyError"));
+        return;
+      }
+
+      setShowPostCopied(true);
+      setTimeout(() => setShowPostCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to post-process entry:", error);
+      toast.error(t("settings.history.postProcessError"));
+    } finally {
+      setPostProcessing(false);
+    }
   };
 
   const handleDeleteEntry = async () => {
@@ -447,6 +535,19 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
               <Check width={16} height={16} />
             ) : (
               <Copy width={16} height={16} />
+            )}
+          </IconButton>
+          <IconButton
+            onClick={handlePostProcessAndCopy}
+            disabled={!hasTranscription || retrying || postProcessing}
+            title={t("settings.history.postProcessAndCopy")}
+          >
+            {showPostCopied ? (
+              <Check width={16} height={16} />
+            ) : postProcessing ? (
+              <SparklesSpinner />
+            ) : (
+              <Sparkles width={16} height={16} />
             )}
           </IconButton>
           <IconButton

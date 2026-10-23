@@ -1,10 +1,20 @@
+use crate::actions::process_transcription_output;
 use crate::managers::{
     history::{HistoryEntry, HistoryManager, PaginatedHistory},
     transcription_jobs::TranscriptionJobManager,
 };
+use crate::language_detection::LanguageDecision;
+use serde::Serialize;
+use specta::Type;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
+
+#[derive(Serialize, Type)]
+pub struct PostProcessHistoryEntryResult {
+    pub post_processed_text: String,
+    pub post_process_prompt: Option<String>,
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -59,6 +69,55 @@ pub async fn delete_history_entry(
         .delete_entry(id)
         .await
         .map_err(|e| e.to_string())
+}
+
+// Re-runs post-processing on a history entry's raw transcription and persists
+// the result. Errors when nothing usable is produced so the UI can tell
+// "processed" apart from "fell back to raw".
+#[tauri::command]
+#[specta::specta]
+pub async fn post_process_history_entry(
+    app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+    id: i64,
+) -> Result<PostProcessHistoryEntryResult, String> {
+    let entry = history_manager
+        .get_entry_by_id(id)
+        .await
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("History entry {} not found", id))?;
+
+    let raw = entry.transcription_text.trim().to_string();
+    if raw.is_empty() {
+        return Err("Entry has no transcription to post-process".to_string());
+    }
+
+    let processed = process_transcription_output(&app, &raw, true).await;
+    let post_processed_text = processed.post_processed_text.ok_or_else(|| {
+        "Post-processing failed or is not configured. Keeping the raw transcription.".to_string()
+    })?;
+
+    // Re-post-processing must not change the entry's language, so hand the
+    // recorded decision back to update_transcription.
+    let language = entry.language_source.map(|source| LanguageDecision {
+        language: entry.language.clone(),
+        source,
+    });
+
+    history_manager
+        .update_transcription(
+            id,
+            entry.transcription_text,
+            Some(post_processed_text.clone()),
+            processed.post_process_prompt.clone(),
+            language,
+        )
+        .map_err(|e| e.to_string())?;
+
+    Ok(PostProcessHistoryEntryResult {
+        post_processed_text,
+        post_process_prompt: processed.post_process_prompt,
+    })
 }
 
 /// Queues the entry to be transcribed again with the current model. Its
