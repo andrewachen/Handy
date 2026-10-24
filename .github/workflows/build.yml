@@ -447,18 +447,21 @@ jobs:
           "$tools_dir/linuxdeploy-${arch}.AppImage" --appimage-extract-and-run --version
 
       # Fork builds (sign-binaries: false) have no Azure Trusted Signing
-      # credentials, but bundle.windows.signCommand runs unconditionally and
-      # fails the bundle. Strip it so unsigned builds package cleanly; keep
-      # tauri.conf.json itself upstream-identical.
-      - name: Disable Trusted Signing for unsigned builds (Windows)
+      # credentials and no updater signing key, but tauri.conf.json enables
+      # both unconditionally: bundle.windows.signCommand runs during bundling
+      # and createUpdaterArtifacts makes tauri try to sign updater artifacts
+      # (failing on the empty key). Strip both so unsigned builds package
+      # cleanly; keep tauri.conf.json itself upstream-identical.
+      - name: Disable signing for unsigned builds (Windows)
         if: contains(inputs.platform, 'windows') && inputs.sign-binaries == false
         shell: pwsh
         run: |
           $path = "src-tauri/tauri.conf.json"
           $json = Get-Content $path -Raw | ConvertFrom-Json
           $json.bundle.windows.PSObject.Properties.Remove("signCommand")
+          $json.bundle.PSObject.Properties.Remove("createUpdaterArtifacts")
           $json | ConvertTo-Json -Depth 100 | Set-Content $path -Encoding utf8
-          Write-Host "Removed bundle.windows.signCommand (unsigned build)"
+          Write-Host "Removed signCommand and createUpdaterArtifacts (unsigned build)"
 
       - name: Build with Tauri
         uses: tauri-apps/tauri-action@v0
