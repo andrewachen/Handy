@@ -75,7 +75,9 @@ jobs:
       platform: ${{ matrix.platform }}
       target: ${{ matrix.target }}
       build-args: ${{ matrix.args }}
-      sign-binaries: true
+      # Fork builds are unsigned (no Azure Trusted Signing / Apple certs);
+      # build.yml strips bundle.windows.signCommand when this is false.
+      sign-binaries: false
       asset-prefix: "handy"
       upload-artifacts: false
       release-id: ${{ needs.create-release.outputs.release-id }}
