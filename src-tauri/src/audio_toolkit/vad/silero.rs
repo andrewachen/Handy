@@ -28,6 +28,7 @@ impl SileroVad {
             &ModelOptions {
                 backend: Backend::Cpu,
                 device: None,
+                no_mmap: false,
             },
         )
         .map_err(|e| anyhow::anyhow!("Failed to load VAD model: {e}"))?;
